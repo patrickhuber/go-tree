@@ -42,6 +42,9 @@ type Tree[TKey comparable, TValue any] interface {
 
 	// RemoveAll removes the node and all children it contains
 	RemoveAll(path []TKey) error
+
+	// Move moves the node to the new path location
+	Move(oldPath, newPath []TKey) error
 }
 
 type tree[TKey comparable, TValue any] struct {
@@ -115,6 +118,10 @@ func (t *tree[TKey, TValue]) Remove(path []TKey) error {
 	return t.remove(path, false)
 }
 
+func (t *tree[TKey, TValue]) RemoveAll(path []TKey) error {
+	return t.remove(path, true)
+}
+
 func (t *tree[TKey, TValue]) remove(path []TKey, all bool) error {
 	if len(path) == 0 {
 		return wrapErr(ErrPath, "path is empty")
@@ -137,8 +144,24 @@ func (t *tree[TKey, TValue]) remove(path []TKey, all bool) error {
 	return nil
 }
 
-func (t *tree[TKey, TValue]) RemoveAll(path []TKey) error {
-	return t.remove(path, true)
+func (t *tree[TKey, TValue]) Move(oldPath []TKey, newPath []TKey) error {
+	parent := parent(oldPath)
+	p, ok := t.Find(parent)
+	if !ok {
+		return wrapErr(ErrNotExist, "no node at path %v", oldPath)
+	}
+	key := oldPath[len(oldPath)-1]
+	c, ok := p.Children[key]
+	if !ok {
+		return wrapErr(ErrNotExist, "no node at path %v", oldPath)
+	}
+	delete(p.Children, key)
+	n, err := t.InsertAll(newPath, c.Value)
+	if err != nil {
+		return err
+	}
+	n.Children = c.Children
+	return nil
 }
 
 func parent[TKey comparable](path []TKey) []TKey {

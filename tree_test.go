@@ -92,6 +92,22 @@ func TestCanRemoveAll(t *testing.T) {
 	require.Nil(t, n)
 }
 
+func TestMove(t *testing.T) {
+	tree := tree.New[string, string]()
+	oldPath := []string{"grand", "parent", "child"}
+	newPath := []string{"grand", "parent", "other"}
+
+	_, err := tree.InsertAll(oldPath, "gary")
+	require.Nil(t, err)
+
+	err = tree.Move(oldPath, newPath)
+	require.Nil(t, err)
+
+	n, ok := tree.Find(newPath)
+	require.True(t, ok)
+	require.NotNil(t, n)
+}
+
 func buildPath(tr tree.Tree[string, string], pathToBuild []string) error {
 	var path []string
 	for _, segment := range pathToBuild {
