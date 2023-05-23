@@ -26,7 +26,8 @@ func newEmptyNode[TKey comparable, TValue any](key TKey) *Node[TKey, TValue] {
 }
 
 type Tree[TKey comparable, TValue any] interface {
-	// Finds the node at the given path
+
+	// Find finds the node at the given path
 	Find(path []TKey) (*Node[TKey, TValue], bool)
 
 	// Inserts the node at the given path and fails if the parent path does not exist
