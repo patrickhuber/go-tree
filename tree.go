@@ -2,56 +2,63 @@ package tree
 
 import "fmt"
 
-func New[T any]() Tree[T] {
-	var t T
-	return &tree[T]{
-		Root: newNode("", t),
+func New[TKey comparable, TValue any]() Tree[TKey, TValue] {
+	var key TKey
+	var val TValue
+	return &tree[TKey, TValue]{
+		Root: newNode(key, val),
 	}
 }
 
-func newNode[T any](key string, value T) *Node[T] {
-	return &Node[T]{
+func newNode[TKey comparable, TValue any](key TKey, value TValue) *Node[TKey, TValue] {
+	return &Node[TKey, TValue]{
 		Key:      key,
 		Value:    value,
-		Children: map[string]*Node[T]{},
+		Children: map[TKey]*Node[TKey, TValue]{},
 	}
 }
 
-func newEmptyNode[T any](key string) *Node[T] {
-	return &Node[T]{
+func newEmptyNode[TKey comparable, TValue any](key TKey) *Node[TKey, TValue] {
+	return &Node[TKey, TValue]{
 		Key:      key,
-		Children: map[string]*Node[T]{},
+		Children: map[TKey]*Node[TKey, TValue]{},
 	}
 }
 
-type Tree[T any] interface {
+type Tree[TKey comparable, TValue any] interface {
 	// Finds the node at the given path
-	Find(path []string) (*Node[T], bool)
+	Find(path []TKey) (*Node[TKey, TValue], bool)
+
 	// Inserts the node at the given path and fails if the parent path does not exist
-	Insert(path []string, item T) (*Node[T], error)
+	Insert(path []TKey, item TValue) (*Node[TKey, TValue], error)
+
 	// InsertAll works like Insert but it builds out the tree path if it does not exist
-	InsertAll(path []string, item T) (*Node[T], error)
+	InsertAll(path []TKey, item TValue) (*Node[TKey, TValue], error)
+
+	// Remove removes the leaf node. If there is an error it will be of type PathError
+	// If the node can not be found nil and false are returned
+	Remove(path []TKey) error
+
+	// RemoveAll removes the node and all children it contains
+	RemoveAll(path []TKey) error
 }
 
-type tree[T any] struct {
-	Root *Node[T]
+type tree[TKey comparable, TValue any] struct {
+	Root *Node[TKey, TValue]
 }
 
-type Node[T any] struct {
-	Key      string
-	Value    T
-	Children map[string]*Node[T]
+type Node[TKey comparable, TValue any] struct {
+	Key      TKey
+	Value    TValue
+	Children map[TKey]*Node[TKey, TValue]
 }
 
 var (
 	ErrNotExist = errNotExist()
+	ErrPath     = errPath()
 )
 
-func errNotExist() error {
-	return fmt.Errorf("does not exist")
-}
-
-func (t *tree[T]) Find(path []string) (*Node[T], bool) {
+func (t *tree[TKey, TValue]) Find(path []TKey) (*Node[TKey, TValue], bool) {
 	if t.Root == nil {
 		return nil, false
 	}
@@ -66,8 +73,8 @@ func (t *tree[T]) Find(path []string) (*Node[T], bool) {
 	return current, true
 }
 
-func (t *tree[T]) Insert(path []string, item T) (*Node[T], error) {
-	parent := path[:len(path)-1]
+func (t *tree[TKey, TValue]) Insert(path []TKey, item TValue) (*Node[TKey, TValue], error) {
+	parent := parent(path)
 	n, ok := t.Find(parent)
 	if !ok {
 		return nil, wrapErr(ErrNotExist, "can not find item at path")
@@ -78,7 +85,7 @@ func (t *tree[T]) Insert(path []string, item T) (*Node[T], error) {
 	return newNode, nil
 }
 
-func (t *tree[T]) InsertAll(path []string, item T) (*Node[T], error) {
+func (t *tree[TKey, TValue]) InsertAll(path []TKey, item TValue) (*Node[TKey, TValue], error) {
 	if t.Root == nil {
 		return nil, wrapErr(ErrNotExist, "missing root")
 	}
@@ -94,7 +101,7 @@ func (t *tree[T]) InsertAll(path []string, item T) (*Node[T], error) {
 		if i == len(path)-1 {
 			child = newNode(segment, item)
 		} else {
-			child = newEmptyNode[T](segment)
+			child = newEmptyNode[TKey, TValue](segment)
 		}
 
 		current.Children[segment] = child
@@ -103,7 +110,42 @@ func (t *tree[T]) InsertAll(path []string, item T) (*Node[T], error) {
 	return current, nil
 }
 
+func (t *tree[TKey, TValue]) Remove(path []TKey) error {
+	parent := parent(path)
+	p, ok := t.Find(parent)
+	if !ok {
+		return wrapErr(ErrNotExist, "no node at path %v", path)
+	}
+	key := path[len(path)-1]
+	_, ok = p.Children[key]
+	if !ok {
+		return wrapErr(ErrNotExist, "no node at path %v", path)
+	}
+	// check if the node has children
+	if len(p.Children) > 0 {
+		return wrapErr(ErrPath, "node must have no children %v. Use RemoveAll instead", path)
+	}
+	delete(p.Children, key)
+	return nil
+}
+
+func (t *tree[TKey, TValue]) RemoveAll(path []TKey) error {
+	return nil
+}
+
+func parent[TKey comparable](path []TKey) []TKey {
+	return path[:len(path)-1]
+}
+
 func wrapErr(err error, message string, args ...any) error {
 	msg := fmt.Sprintf(message, args...)
 	return fmt.Errorf("%w %s", err, msg)
+}
+
+func errNotExist() error {
+	return fmt.Errorf("does not exist")
+}
+
+func errPath() error {
+	return fmt.Errorf("invalid path")
 }

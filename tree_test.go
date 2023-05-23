@@ -9,7 +9,7 @@ import (
 )
 
 func TestCanInsert(t *testing.T) {
-	tree := tree.New[string]()
+	tree := tree.New[string, string]()
 
 	pathToBuild := []string{"root", "test"}
 	err := buildPath(tree, pathToBuild)
@@ -17,7 +17,7 @@ func TestCanInsert(t *testing.T) {
 }
 
 func TestCanFind(t *testing.T) {
-	tree := tree.New[string]()
+	tree := tree.New[string, string]()
 	pathToBuild := []string{"root", "parent", "child", "grandchild"}
 	buildPath(tree, pathToBuild)
 	n, ok := tree.Find(pathToBuild)
@@ -26,7 +26,7 @@ func TestCanFind(t *testing.T) {
 }
 
 func TestCanInsertAll(t *testing.T) {
-	tree := tree.New[string]()
+	tree := tree.New[string, string]()
 	key := "child"
 	path := []string{"grand", "parent", key}
 	expected := "gary"
@@ -43,7 +43,52 @@ func TestCanInsertAll(t *testing.T) {
 	require.Equal(t, key, n.Key)
 }
 
-func buildPath(tr tree.Tree[string], pathToBuild []string) error {
+func TestCanInsertAllWithOverlap(t *testing.T) {
+	tree := tree.New[string, string]()
+	key := "child"
+	path := []string{"grand", "parent", key}
+	expected := "gary"
+	n, err := tree.InsertAll(path, expected)
+	require.Nil(t, err)
+	require.NotNil(t, n)
+	require.Equal(t, expected, n.Value)
+	require.Equal(t, key, n.Key)
+
+	key = "2nd"
+	expected = "sam"
+	n, err = tree.InsertAll([]string{"grand", "parent", key}, expected)
+	require.Nil(t, err)
+	require.NotNil(t, n)
+	require.Equal(t, expected, n.Value)
+	require.Equal(t, key, n.Key)
+}
+
+func TestCanRemove(t *testing.T) {
+	tree := tree.New[string, string]()
+	key := "child"
+	path := []string{"grand", "parent", key}
+	expected := "gary"
+	_, err := tree.InsertAll(path, expected)
+	require.Nil(t, err)
+
+	err = tree.Remove(path)
+	require.NotNil(t, err)
+
+	p, ok := tree.Find(path[:len(path)-1])
+	require.True(t, ok)
+	require.NotNil(t, p)
+}
+
+func TestCanRemoveAll(t *testing.T) {
+	tree := tree.New[string, string]()
+	key := "child"
+	path := []string{"grand", "parent", key}
+	_, err := tree.InsertAll(path, "gary")
+	require.Nil(t, err)
+	tree.RemoveAll(path[0:0])
+}
+
+func buildPath(tr tree.Tree[string, string], pathToBuild []string) error {
 	var path []string
 	for _, segment := range pathToBuild {
 		path = append(path, segment)
