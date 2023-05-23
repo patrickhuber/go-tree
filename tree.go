@@ -111,6 +111,13 @@ func (t *tree[TKey, TValue]) InsertAll(path []TKey, item TValue) (*Node[TKey, TV
 }
 
 func (t *tree[TKey, TValue]) Remove(path []TKey) error {
+	return t.remove(path, false)
+}
+
+func (t *tree[TKey, TValue]) remove(path []TKey, all bool) error {
+	if len(path) == 0 {
+		return wrapErr(ErrPath, "path is empty")
+	}
 	parent := parent(path)
 	p, ok := t.Find(parent)
 	if !ok {
@@ -122,7 +129,7 @@ func (t *tree[TKey, TValue]) Remove(path []TKey) error {
 		return wrapErr(ErrNotExist, "no node at path %v", path)
 	}
 	// check if the node has children
-	if len(p.Children) > 0 {
+	if len(p.Children) > 0 && !all {
 		return wrapErr(ErrPath, "node must have no children %v. Use RemoveAll instead", path)
 	}
 	delete(p.Children, key)
@@ -130,7 +137,7 @@ func (t *tree[TKey, TValue]) Remove(path []TKey) error {
 }
 
 func (t *tree[TKey, TValue]) RemoveAll(path []TKey) error {
-	return nil
+	return t.remove(path, true)
 }
 
 func parent[TKey comparable](path []TKey) []TKey {
@@ -139,7 +146,7 @@ func parent[TKey comparable](path []TKey) []TKey {
 
 func wrapErr(err error, message string, args ...any) error {
 	msg := fmt.Sprintf(message, args...)
-	return fmt.Errorf("%w %s", err, msg)
+	return fmt.Errorf("%w: %s", err, msg)
 }
 
 func errNotExist() error {
